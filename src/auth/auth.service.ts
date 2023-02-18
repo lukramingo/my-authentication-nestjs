@@ -10,6 +10,7 @@ import { MailerPwdService } from '../mailerPwd/mailer-pwd.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './jwt-payload.interface';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailDto } from './dto/search-email.dto';
 
 @Injectable()
@@ -47,23 +48,28 @@ export class AuthService {
     }
 
     async findUser(verification_token){
+
         const found = await this.userRepository.createQueryBuilder('user')
         .where('user.verification_token = :verification_token', {verification_token})
         .getOne();
 
+        if(found.status === "1"){
+            throw new ConflictException('user already verify');
+        }
+
         if(found){
-            return await this.userRepository.createQueryBuilder()
+             await this.userRepository.createQueryBuilder()
             .update(User)
             .set({ status: "1" })
             .where({id: found.id})
-            .execute();            
+            .execute();  
+            return {message: "successfully verify user"}          
         }else{
             throw new NotFoundException('user not found');
         }        
     }
 
-    async findEmail(emailDto: EmailDto){
-        const{ email } = emailDto;
+    async findEmail(email: string){
 
         const user = await this.userRepository.findOneBy({email});
 
@@ -79,8 +85,11 @@ export class AuthService {
         
     }
 
-    async setPassword(password_reset_token: string, newPassword: string){
-        const user = await this.userRepository.findOneBy({password_reset_token});
+    async setPassword(resetPasswordDto: ResetPasswordDto){
+
+        const {token, newPassword} = resetPasswordDto;
+        
+        const user = await this.userRepository.findOneBy({password_reset_token: token});
         if(!user){
             throw new UnauthorizedException('invalid token');
         }

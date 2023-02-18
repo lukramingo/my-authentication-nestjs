@@ -1,9 +1,11 @@
-import { Body, Controller, Post, Query, Get, Param } from '@nestjs/common';
+import { Body, Controller, Post, Query, Get, Param, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthCredentialDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailDto } from './dto/search-email.dto';
 
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
 export class AuthController {
     constructor(private authService: AuthService){}
@@ -19,16 +21,15 @@ export class AuthController {
     }
 
     @Post('/search')
-    findEmail(@Query('email') emailDto: EmailDto){
-        return this.authService.findEmail(emailDto);
+    findEmail(@Query('email') email: string){
+        return this.authService.findEmail(email);
     }
 
     @Post('/reset')
     setPassword(
-        @Query('token') token: string,
-        @Body('newPassword') newPassword: string
+        @Body() resetPasswordDto: ResetPasswordDto 
         ){
-        return this.authService.setPassword(token, newPassword);
+        return this.authService.setPassword(resetPasswordDto);
     }
 
     @Post('/login')
