@@ -22,16 +22,16 @@ export class AuthService {
         private jwtService: JwtService
         ){}
     
-    async signup(body: AuthCredentialDto): Promise<void>{
-        const {username, email, password_hash} = body;
+    async signup(body: AuthCredentialDto): Promise<any>{
+        const {username, email, password} = body;
 
         const exitUser = await this.userRepository.findOneBy({username});
         if(exitUser){
-            throw new ConflictException(`${exitUser} already exist!`);
+            throw new ConflictException("user already exist!");
         }
 
         const salt = await bcrypt.genSalt();
-        const passwordHash = await bcrypt.hash(password_hash, salt);
+        const passwordHash = await bcrypt.hash(password, salt);
 
         const vToken = uuidv4();
 
@@ -43,7 +43,9 @@ export class AuthService {
 
         await this.userRepository.save(user)
 
-        return await this.mailerService.sendVerificationEmail(email, vToken);
+        await this.mailerService.sendVerificationEmail(email, vToken);
+
+       return {message: "successfully"}
 
     }
 
@@ -81,7 +83,9 @@ export class AuthService {
         user.password_reset_token = newToken;
         await this.userRepository.save(user);
 
-       return await this.mailerPwdService.sendVerificationEmail(email, newToken);
+        await this.mailerPwdService.sendVerificationEmail(email, newToken);
+
+        return {message: "email found"}
         
     }
 
@@ -102,14 +106,14 @@ export class AuthService {
     }
 
     async signIn(body:LoginDto): Promise<{accessToken: string}>{
-        const {username, password_hash} = body;
+        const {username, password} = body;
         const [user] = await this.userRepository.findBy({username})
         
         if(!user){
             throw new NotFoundException(`${user} not found`);
         }
 
-        if(!await bcrypt.compare(password_hash, user.password_hash)){
+        if(!await bcrypt.compare(password, user.password_hash)){
             throw new UnauthorizedException('Invalid password');
         }
 

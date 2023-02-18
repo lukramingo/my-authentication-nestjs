@@ -11,5 +11,5 @@ export class LoginDto {
     @MaxLength(20)
     @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, 
     { message: 'password must contain uppercase, lowercase, number and special character'})
-    password_hash:string;
+    password:string;
 }
