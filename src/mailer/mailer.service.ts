@@ -21,6 +21,10 @@ export class MailerService {
       html: `Click <a href="${verificationLink}">here</a> token:${token} to verify your email`,
     };
 
-    return await transporter.sendMail(mailOptions);
+    try{
+      return await transporter.sendMail(mailOptions);
+    }catch(err){
+      throw new Error('try again');
+    }
   }
 }

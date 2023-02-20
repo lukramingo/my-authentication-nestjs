@@ -17,7 +17,7 @@ export class MailerPwdService {
     const mailOptions = {
       from: 'lukramingo2017@gmail.com',
       to,
-      subject: 'Verify your email',
+      subject: 'Verify your reset password link',
       html: `Click <a href="${verificationLink}">here</a> token:${token} to reset password`,
     };
 

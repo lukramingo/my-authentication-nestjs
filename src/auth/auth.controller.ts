@@ -21,7 +21,7 @@ export class AuthController {
     }
 
     @Post('/search')
-    findEmail(@Query('email') email: string){
+    findEmail(@Query('email') email: EmailDto){
         return this.authService.findEmail(email);
     }
 
