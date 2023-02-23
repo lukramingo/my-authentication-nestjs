@@ -1,4 +1,5 @@
 import { TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { OtpStore } from "../auth/entity/otp.entity";
 import { User } from "../auth/entity/user.entity";
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
@@ -8,6 +9,6 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     username: 'root',
     password: 'Nature@2022',
     database: 'myauth_db',
-    entities: [User,],
+    entities: [User, OtpStore],
     synchronize: true
 }

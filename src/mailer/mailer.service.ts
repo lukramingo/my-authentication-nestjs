@@ -3,7 +3,7 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailerService {
-  async sendVerificationEmail(to: string, token: string): Promise<void> {
+  async sendVerificationEmail(to: string, token: string, otp: string): Promise<void> {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -18,7 +18,7 @@ export class MailerService {
       from: 'lukramingo2017@gmail.com',
       to,
       subject: 'Verify your email',
-      html: `Click <a href="${verificationLink}">here</a> token:${token} to verify your email`,
+      html: `Click <a href="${verificationLink}">here</a> OTP:${otp} token:${token} to verify your email`,
     };
 
     try{

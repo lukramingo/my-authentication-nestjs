@@ -4,6 +4,7 @@ import { AuthCredentialDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailDto } from './dto/search-email.dto';
+import { OtpDto } from './dto/opt.dto';
 
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
@@ -16,8 +17,8 @@ export class AuthController {
     }
 
     @Post('/verify')
-    verifyUser(@Query('token') token:string){
-        return this.authService.findUser(token);
+    verifyUser(@Body() body: OtpDto){
+        return this.authService.findUser(body);
     }
 
     @Post('/search')

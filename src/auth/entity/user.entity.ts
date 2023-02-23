@@ -1,5 +1,6 @@
 import { Exclude } from "class-transformer";
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { OtpStore } from "./otp.entity";
 
 @Entity()
 export class User {
@@ -32,4 +33,8 @@ export class User {
 
     @UpdateDateColumn({type: 'timestamp', nullable: true, default: null})
     updated_at: Date;
+    @OneToMany(type => OtpStore, otpStore => otpStore.user)
+    otpStores: OtpStore[];
+
+    
 }
