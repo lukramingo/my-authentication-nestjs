@@ -49,7 +49,7 @@ export class AuthService {
         await this.userRepository.save(user)
 
         //otp 4 digit number generate
-        let otp = crypto.randomInt(1000, 10000).toString();   
+        let otp = crypto.randomInt(10000, 99999).toString();   
 
         const optStore = new OtpStore()
         optStore.otp = otp;
@@ -80,32 +80,35 @@ export class AuthService {
         
         //check user token expired time
         let myEpochCurrent = Math.floor(new Date().getTime());
-        let myExpiredDate = moment(user.created_at).add(1, 'minutes').toDate();
-        let myEpochExpired = Math.floor(myExpiredDate.getTime());
+        // let myExpiredDate = moment(user.created_at).add(2, 'minutes').toDate();
+        // let myEpochExpired = Math.floor(myExpiredDate.getTime());
 
 
-        if(myEpochExpired <= myEpochCurrent){
-            throw new BadRequestException('token has expired');
-        }
+        // if(myEpochExpired < myEpochCurrent){
+        //     throw new BadRequestException('user token has expired');
+        // }
 
         // select record has userId and latest id from otp record
         const found = await this.optRepository.createQueryBuilder('OtpStore')
         .where({userId: user.id})
         .orderBy('id', 'DESC')
         .getOne();
-
-        if(!(found.otp === otp)){
-            throw new BadRequestException('otp not matching');
+        
+        if(found.status === '1'){
+            throw new Error('otp already varify');
         }
-        // expired time check for otp
-       
-        let myExpiredOtp = found.created_at;
+
+        if(!found || (found.otp !== otp)){
+            throw new BadRequestException('otp invalid');
+        }
+
+        // expired time check for otp       
+        let myExpiredOtp = moment(found.created_at).add(1, 'minutes').toDate();
         let myEpochExpiredOtp = Math.floor(myExpiredOtp.getTime());
         
-        if(myEpochExpiredOtp <= myEpochCurrent){
+        if(myEpochExpiredOtp < myEpochCurrent){
             throw new BadRequestException('otp has expired');
         }
-
         
         await this.optRepository.createQueryBuilder()
         .update(OtpStore)
