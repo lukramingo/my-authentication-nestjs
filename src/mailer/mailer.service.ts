@@ -23,6 +23,7 @@ export class MailerService {
 
     try{
       return await transporter.sendMail(mailOptions);
+      
     }catch(err){
       throw new Error('try again');
     }

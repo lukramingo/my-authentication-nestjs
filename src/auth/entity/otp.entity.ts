@@ -16,6 +16,7 @@ export class OtpStore {
     created_at: Date;
 
     @ManyToOne(type => User, user => user.otpStores)
+    @JoinColumn()
     user: User;
     
     @Column()

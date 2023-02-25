@@ -15,6 +15,7 @@ import * as moment from 'moment';
 import { EmailDto } from './dto/search-email.dto';
 import { OtpStore } from './entity/otp.entity';
 import { OtpDto } from './dto/opt.dto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -44,21 +45,15 @@ export class AuthService {
         user.email = email;
         user.password_hash = passwordHash;
         user.verification_token = vToken;
-        user.created_at = moment().add(1, 'minutes').toDate();
         
-        const userRes = await this.userRepository.save(user)
+        await this.userRepository.save(user)
 
-        //otp number generate
-        const digits = '0123456789';
-        let otp = '';
-        for(let i=0; i<4; i++){
-            otp += digits[Math.floor(Math.random()*digits.length)];
-        }
+        //otp 4 digit number generate
+        let otp = crypto.randomInt(1000, 10000).toString();   
 
         const optStore = new OtpStore()
         optStore.otp = otp;
-        optStore.created_at = moment().add(1, 'minutes').toDate();
-        optStore.userId = userRes.id;
+        optStore.userId = user.id;
 
         
         await this.optRepository.save(optStore)
@@ -72,7 +67,7 @@ export class AuthService {
 
 
     async findUser({token, otp}: OtpDto){
-
+        
         const user = await this.userRepository.findOneBy({verification_token: token});
 
         if(!user){
@@ -84,13 +79,10 @@ export class AuthService {
         }
         
         //check user token expired time
-        let myDate = new Date();
-        let myEpochCurrent = Math.floor(myDate.getTime());
-        let myExpiredDate = user.created_at;
+        let myEpochCurrent = Math.floor(new Date().getTime());
+        let myExpiredDate = moment(user.created_at).add(1, 'minutes').toDate();
         let myEpochExpired = Math.floor(myExpiredDate.getTime());
 
-        // console.log(myEpochCurrent);
-        // console.log(myEpochExpired);
 
         if(myEpochExpired <= myEpochCurrent){
             throw new BadRequestException('token has expired');
@@ -146,7 +138,6 @@ export class AuthService {
 
         const newToken = uuidv4()
         user.password_reset_token = newToken;
-        user.updated_at = moment().add(10, 'minutes').toDate();
         await this.userRepository.save(user);
 
         await this.mailerPwdService.sendVerificationEmail(email, newToken);
@@ -165,9 +156,8 @@ export class AuthService {
             throw new UnauthorizedException('invalid user');
         }
         //checking for expired password_reset_token
-        let myDate = new Date();
-        let myEpoch = Math.floor(myDate.getTime()/1000.0);
-        let myExpiredDate = user.updated_at;
+        let myEpoch = Math.floor(new Date().getTime()/1000.0);
+        let myExpiredDate = moment(user.updated_at).add(1, 'minutes').toDate();
         let myEpochExp = Math.floor(myExpiredDate.getTime()/1000.0);
 
         if(!(myEpoch <= myEpochExp)){
