@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { AuthCredentialDto } from './dto/auth.dto';
 import { User } from './entity/user.entity';
 import * as bcrypt from 'bcrypt';
@@ -16,6 +16,7 @@ import { EmailDto } from './dto/search-email.dto';
 import { OtpStore } from './entity/otp.entity';
 import { OtpDto } from './dto/opt.dto';
 import * as crypto from 'crypto';
+import {request, response} from 'express';
 
 @Injectable()
 export class AuthService {
@@ -24,11 +25,11 @@ export class AuthService {
         @InjectRepository(OtpStore) private optRepository: Repository<OtpStore>,
         private mailerService: MailerService,
         private mailerPwdService: MailerPwdService,
-        private jwtService: JwtService
+        private jwtService: JwtService,
+        private dataSource: DataSource
         ){}
         
-    async signup(body: AuthCredentialDto): Promise<any>{
-        const {username, email, password} = body;
+    async signup({username, email, password}: AuthCredentialDto): Promise<any>{
 
         const exitUser = await this.userRepository.findOneBy({username});
         if(exitUser){
@@ -45,88 +46,120 @@ export class AuthService {
         user.email = email;
         user.password_hash = passwordHash;
         user.verification_token = vToken;
-        
-        await this.userRepository.save(user)
 
-        //otp 4 digit number generate
-        let otp = crypto.randomInt(10000, 99999).toString();   
+        // generate random otp 6 digit number
+        let otpCode = crypto.randomInt(10000, 99999).toString();  
 
-        const optStore = new OtpStore()
-        optStore.otp = otp;
-        optStore.userId = user.id;
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-        
-        await this.optRepository.save(optStore)
-     
+        try{
 
-        await this.mailerService.sendVerificationEmail(email, vToken, otp);
 
-       return {message: "signup verify link has send to email"};
+            if(await queryRunner.manager.save(user)){ 
+    
+                const optStore = new OtpStore()
+                optStore.otp = otpCode;
+                optStore.userId = user.id;        
+                
+                if(!await queryRunner.manager.save(optStore)){
+                    await queryRunner.rollbackTransaction();
+                    throw new BadRequestException('400');
+                }
+               
+            }else{
+                await queryRunner.rollbackTransaction();
+                throw new BadRequestException('400');
+            }
 
+            await queryRunner.commitTransaction();
+
+            await this.mailerService.sendVerificationEmail(email, vToken, otpCode);
+            
+           return {message: "signup verify link has send to email"};
+
+        }catch(err){
+            await queryRunner.rollbackTransaction();
+        }finally{
+            await queryRunner.release();
+        }
+       
     }
 
 
-    async findUser({token, otp}: OtpDto){
-        
-        const user = await this.userRepository.findOneBy({verification_token: token});
+    async findUser({token, otp}: OtpDto): Promise<any>{
 
+        const user = await this.userRepository.findOneBy({verification_token: token});
+         
         if(!user){
             throw new NotFoundException('User not found. Please try again.');
         }
-
+        
         if(user.status === "1"){
             throw new ConflictException('user already verify');
-        }
-        
-        //check user token expired time
-        let myEpochCurrent = Math.floor(new Date().getTime());
-        // let myExpiredDate = moment(user.created_at).add(2, 'minutes').toDate();
-        // let myEpochExpired = Math.floor(myExpiredDate.getTime());
+        }        
 
-
-        // if(myEpochExpired < myEpochCurrent){
-        //     throw new BadRequestException('user token has expired');
-        // }
-
-        // select record has userId and latest id from otp record
-        const found = await this.optRepository.createQueryBuilder('OtpStore')
+        const foundLatest = await this.optRepository.createQueryBuilder('OtpStore')
         .where({userId: user.id})
         .orderBy('id', 'DESC')
         .getOne();
-        
-        if(found.status === '1'){
-            throw new Error('otp already varify');
-        }
 
-        if(!found || (found.otp !== otp)){
+        // console.log(foundLatest);
+
+        if(!foundLatest || foundLatest.status === '1' || (foundLatest.otp !== otp)){
+
             throw new BadRequestException('otp invalid');
         }
 
-        // expired time check for otp       
-        let myExpiredOtp = moment(found.created_at).add(1, 'minutes').toDate();
+        // expired time check for otp 
+        let myEpochCurrent = Math.floor(new Date().getTime());      
+        let myExpiredOtp = moment(foundLatest.created_at).add(30, 'minutes').toDate();
         let myEpochExpiredOtp = Math.floor(myExpiredOtp.getTime());
-        
+
         if(myEpochExpiredOtp < myEpochCurrent){
-            throw new BadRequestException('otp has expired');
+            throw new BadRequestException('otp has expired')
         }
+           
         
-        await this.optRepository.createQueryBuilder()
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        
+        try{
+
+        if(await queryRunner.manager.createQueryBuilder()
         .update(OtpStore)
         .set({status: '1'})
-        .where({id: found.id})
-        .execute();
-        
+        .where({id: foundLatest.id})
+        .execute()){           
+           
+            if(user.status === "2"){
+                
+                user.status = "1";
+                
+                if(!await queryRunner.manager.save(user)){                 
+                    await queryRunner.rollbackTransaction();
+                    throw new BadRequestException('error fail to update user status');
+                }
             
-        if(user.status === "2"){
-            await this.userRepository.createQueryBuilder()
-            .update(User)
-            .set({ status: "1" })
-            .where({id: user.id})
-            .execute();  
-            return {message: "successfully verify user"}; 
+            }else{
+                throw new NotFoundException('Invalid user');           
+            }
+
         }else{
-            throw new NotFoundException('Invalid user');           
-        }           
+            await queryRunner.rollbackTransaction();
+            throw new BadRequestException('otp status failed to updated');
+        }
+
+        await queryRunner.commitTransaction();
+        return {message: "sucessfully varify"};
+            
+    }catch(err){
+        await queryRunner.rollbackTransaction();
+    }finally{
+        await queryRunner.release();
+    }
 
        
     }
@@ -163,7 +196,7 @@ export class AuthService {
         let myExpiredDate = moment(user.updated_at).add(1, 'minutes').toDate();
         let myEpochExp = Math.floor(myExpiredDate.getTime()/1000.0);
 
-        if(!(myEpoch <= myEpochExp)){
+        if(!(myEpoch < myEpochExp)){
             throw new BadRequestException('token has expired');
         }
 
