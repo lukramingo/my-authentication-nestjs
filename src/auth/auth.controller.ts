@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Query, Get, Param, UseInterceptors, ClassSerializerInterceptor, Res } from '@nestjs/common';
+import { Body, Controller, Post, Query, UseInterceptors, ClassSerializerInterceptor, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthCredentialDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +23,7 @@ export class AuthController {
         if(!respon){
             res.status(400).send();
         }
+        return respon;
     }
 
     @Post('/search')

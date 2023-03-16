@@ -16,7 +16,6 @@ import { EmailDto } from './dto/search-email.dto';
 import { OtpStore } from './entity/otp.entity';
 import { OtpDto } from './dto/opt.dto';
 import * as crypto from 'crypto';
-import {request, response} from 'express';
 
 @Injectable()
 export class AuthService {
@@ -176,7 +175,7 @@ export class AuthService {
         user.password_reset_token = newToken;
         await this.userRepository.save(user);
 
-        await this.mailerPwdService.sendVerificationEmail(email, newToken);
+        await this.mailerPwdService.sendVerificationEmail(user.email, newToken);
 
         return {message: "reset password verification link has send"}
         
