@@ -18,7 +18,7 @@ export class MailerPwdService {
       from: 'lukramingo2017@gmail.com',
       to,
       subject: 'Verify your reset password link',
-      html: `Click <a href="${verificationLink}">here</a> token:${token} to reset password`,
+      html: `Click <a href="${verificationLink}">here</a>`,
     };
 
     return await transporter.sendMail(mailOptions);
